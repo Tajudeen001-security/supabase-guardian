@@ -126,7 +126,13 @@ const GroupChatPage = () => {
       finalContent = `┃ ${replyTo.username || "User"}: ${preview}\n\n${msgContent}`;
       setReplyTo(null);
     }
-    await supabase.from("group_messages").insert({ group_id: groupId, sender_id: user.id, content: finalContent, message_type: type || "text" });
+    const { error: sendErr } = await supabase.from("group_messages").insert({ group_id: groupId, sender_id: user.id, content: finalContent, message_type: type || "text" });
+    if (sendErr) {
+      console.error("group_messages insert failed", sendErr);
+      toast.error(sendErr.message || "Failed to send message");
+      if (!content) setInput(msgContent);
+      return;
+    }
     if (!content) {
       const trig = parseAiTrigger(msgContent);
       if (trig && !aiInFlight.current) {
