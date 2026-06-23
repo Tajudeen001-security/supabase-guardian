@@ -76,6 +76,18 @@ const PostCard = ({
     }
   };
 
+  // Real-time gift toast for the post owner whenever a viewer sends a gift.
+  useEffect(() => {
+    if (!id || !isOwner) return;
+    const ch = supabase.channel(`post-gifts-${id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "gifts", filter: `post_id=eq.${id}` }, (payload: any) => {
+        const g = payload.new;
+        toast.success(`🎁 You just received ${g.coin_amount} coins!`);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id, isOwner]);
+
   useEffect(() => {
     if (!user || !id) return;
     supabase.from("likes").select("id").eq("post_id", id).eq("user_id", user.id).single()
