@@ -104,6 +104,11 @@ const LivePage = () => {
       .on("broadcast", { event: "chat" }, (payload) => {
         setChatMessages(prev => [...prev, payload.payload]);
       })
+      .on("broadcast", { event: "gift" }, (payload) => {
+        const g = payload.payload as { user: string; coins: number; gift?: string };
+        setChatMessages(prev => [...prev, { user: g.user, text: `sent ${g.gift || "a gift"} 🎁`, coins: g.coins, isGift: true }]);
+        toast.success(`${g.user} sent ${g.coins} 🪙`);
+      })
       .subscribe();
     chatChannelRef.current = ch;
     return () => {
@@ -126,6 +131,7 @@ const LivePage = () => {
     setChatMessages(prev => [...prev, msg]);
     chatChannelRef.current?.send({ type: "broadcast", event: "chat", payload: { ...msg, user: msg.displayName } });
     // If sending coins, create a gift
+    // If sending coins, create a gift AND broadcast it to everyone in the room.
     if (coinAmount && activeStream && user && activeStream.user_id !== user.id) {
       supabase.from("gifts").insert({
         sender_id: user.id, recipient_id: activeStream.user_id, live_stream_id: activeStream.id,
@@ -133,6 +139,10 @@ const LivePage = () => {
       }).then(({ error }) => {
         if (error) toast.error(error.message);
         else toast.success(`🎁 Sent ${coinAmount} coins!`);
+      });
+      chatChannelRef.current?.send({
+        type: "broadcast", event: "gift",
+        payload: { user: msg.displayName, coins: coinAmount, gift: "coins" },
       });
     }
     setChatMessage(""); setCoinAmount(null);

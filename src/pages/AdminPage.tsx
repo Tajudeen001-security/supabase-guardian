@@ -6,12 +6,24 @@ import { toast } from "sonner";
 import { Shield, Users, BadgeCheck, Coins, Trash2, CheckCircle, XCircle, ArrowLeft, Search, Download, Receipt, Globe, ExternalLink, RefreshCw, Cookie, Activity, FileSearch, BarChart3, ToggleLeft, Rocket } from "lucide-react";
 import { setConsent } from "@/components/CookieConsent";
 
+const ReceiptThumb = ({ path }: { path: string }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (path.startsWith("http")) { setUrl(path); return; }
+    supabase.storage.from("receipts").createSignedUrl(path, 3600).then(({ data }) => setUrl(data?.signedUrl || null));
+  }, [path]);
+  if (!url) return <p className="text-[10px] text-muted-foreground">Loading receipt…</p>;
+  return <a href={url} target="_blank" rel="noopener"><img src={url} alt="Receipt" className="w-full h-40 object-cover rounded-lg" /></a>;
+};
+
+
 const AdminPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"users" | "verification" | "transactions" | "ledger" | "seo" | "analytics" | "features">("users");
+  const [tab, setTab] = useState<"users" | "verification" | "coinbuys" | "transactions" | "ledger" | "seo" | "analytics" | "features">("users");
+  const [coinBuys, setCoinBuys] = useState<any[]>([]);
   const [featureFlags, setFeatureFlags] = useState<any[]>([]);
   const [appVersion, setAppVersion] = useState<string>("3.0");
   const [announcement, setAnnouncementInput] = useState<string>("");
@@ -202,18 +214,20 @@ const AdminPage = () => {
   };
 
   const loadData = async () => {
-    const [profilesRes, verificationsRes, transactionsRes, withdrawalsRes, ledgerRes] = await Promise.all([
+    const [profilesRes, verificationsRes, transactionsRes, withdrawalsRes, ledgerRes, coinBuysRes] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("verification_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("coin_transactions").select("*").eq("transaction_type", "withdrawal").order("created_at", { ascending: false }),
       supabase.from("withdrawal_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("gift_ledger" as any).select("*").order("created_at", { ascending: false }).limit(1000),
+      supabase.from("coin_transactions").select("*").eq("transaction_type", "purchase").order("created_at", { ascending: false }).limit(200),
     ]);
     if (profilesRes.data) setUsers(profilesRes.data);
     if (verificationsRes.data) setVerifications(verificationsRes.data);
     if (transactionsRes.data) setTransactions(transactionsRes.data);
     if (withdrawalsRes.data) setWithdrawals(withdrawalsRes.data);
     if (ledgerRes.data) setLedger(ledgerRes.data as any[]);
+    if (coinBuysRes.data) setCoinBuys(coinBuysRes.data);
   };
 
   const loadAnalytics = async () => {
@@ -420,6 +434,7 @@ const AdminPage = () => {
         {[
           { key: "users", icon: Users, label: "Users" },
           { key: "verification", icon: BadgeCheck, label: "Verify" },
+          { key: "coinbuys", icon: Coins, label: "Coin Buys" },
           { key: "transactions", icon: Coins, label: "Withdrawals" },
           { key: "ledger", icon: Receipt, label: "Ledger" },
           { key: "analytics", icon: BarChart3, label: "Analytics" },
@@ -524,6 +539,64 @@ const AdminPage = () => {
             {verifications.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">No verification requests</p>}
           </div>
         )}
+
+        {tab === "coinbuys" && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">{coinBuys.filter(c => c.status === "pending").length} pending coin purchases</p>
+            {coinBuys.map((c) => {
+              const profile = users.find(u => u.user_id === c.user_id);
+              const decide = async (approve: boolean) => {
+                if (approve) {
+                  const current = profile?.jagx_coins || 0;
+                  const { error: balErr } = await supabase
+                    .from("profiles")
+                    .update({ jagx_coins: current + (c.amount || 0) })
+                    .eq("user_id", c.user_id);
+                  if (balErr) { toast.error(balErr.message); return; }
+                }
+                const { error } = await supabase
+                  .from("coin_transactions")
+                  .update({ status: approve ? "approved" : "rejected", reviewed_by: user!.id, reviewed_at: new Date().toISOString() } as any)
+                  .eq("id", c.id);
+                if (error) { toast.error(error.message); return; }
+                if (approve) {
+                  await supabase.from("notifications").insert({
+                    user_id: c.user_id,
+                    type: "coin_purchase_approved",
+                    content: `Your purchase of ${c.amount} JagX Coins was approved 🪙`,
+                  } as any);
+                }
+                toast.success(approve ? `Credited ${c.amount} coins to user` : "Rejected");
+                loadData();
+              };
+              return (
+                <div key={c.id} className="p-3 rounded-xl bg-surface border border-border/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-gold">🪙 {c.amount} coins</p>
+                      <p className="text-[10px] text-muted-foreground">@{profile?.username || c.user_id.slice(0,8)} • {new Date(c.created_at).toLocaleString()}</p>
+                      {c.opay_reference && <p className="text-[10px] text-muted-foreground">Opay: {c.opay_reference}</p>}
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${c.status === "approved" ? "bg-green-500/20 text-green-400" : c.status === "rejected" ? "bg-red-500/20 text-red-400" : "bg-gold/20 text-gold"}`}>
+                      {c.status}
+                    </span>
+                  </div>
+                  {c.receipt_url && (
+                    <ReceiptThumb path={c.receipt_url} />
+                  )}
+                  {c.status === "pending" && (
+                    <div className="flex gap-2">
+                      <button onClick={() => decide(true)} className="flex-1 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-[10px] font-bold uppercase">Approve & Credit</button>
+                      <button onClick={() => decide(false)} className="flex-1 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-[10px] font-bold uppercase">Reject</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {coinBuys.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">No coin purchase requests</p>}
+          </div>
+        )}
+
 
         {tab === "transactions" && (
           <div className="space-y-3">
