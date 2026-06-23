@@ -126,7 +126,7 @@ const GroupChatPage = () => {
       finalContent = `┃ ${replyTo.username || "User"}: ${preview}\n\n${msgContent}`;
       setReplyTo(null);
     }
-    const { error: sendErr } = await supabase.from("group_messages").insert({ group_id: groupId, user_id: user.id, sender_id: user.id, content: finalContent, message_type: type || "text" });
+    const { error: sendErr } = await supabase.from("group_messages" as any).insert({ group_id: groupId, user_id: user.id, sender_id: user.id, content: finalContent, message_type: type || "text" });
     if (sendErr) {
       console.error("group_messages insert failed", sendErr);
       toast.error(sendErr.message || "Failed to send message");
@@ -141,12 +141,12 @@ const GroupChatPage = () => {
         try {
           if (trig.kind === "image") {
             const url = await generateAndStoreImage(trig.prompt, user.id);
-            await supabase.from("group_messages").insert({ group_id: groupId, user_id: user.id, sender_id: user.id, content: url, message_type: "image" });
-            await supabase.from("group_messages").insert({ group_id: groupId, user_id: user.id, sender_id: user.id, content: `🤖 ${AI_DISPLAY_NAME}: generated for "${trig.prompt}"`, message_type: "text" });
+            await supabase.from("group_messages" as any).insert({ group_id: groupId, user_id: user.id, sender_id: user.id, content: url, message_type: "image" });
+            await supabase.from("group_messages" as any).insert({ group_id: groupId, user_id: user.id, sender_id: user.id, content: `🤖 ${AI_DISPLAY_NAME}: generated for "${trig.prompt}"`, message_type: "text" });
           } else {
             const history = messages.slice(-6).map(m => ({ role: m.sender_id === user.id ? "user" as const : "model" as const, text: m.content }));
             const reply = await runAiText(trig.prompt, history);
-            await supabase.from("group_messages").insert({ group_id: groupId, user_id: user.id, sender_id: user.id, content: `🤖 ${AI_DISPLAY_NAME}: ${reply}`, message_type: "text" });
+            await supabase.from("group_messages" as any).insert({ group_id: groupId, user_id: user.id, sender_id: user.id, content: `🤖 ${AI_DISPLAY_NAME}: ${reply}`, message_type: "text" });
           }
         } catch (e: any) {
           toast.error(e?.message || "AI request failed");
