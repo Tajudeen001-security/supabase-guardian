@@ -11,7 +11,8 @@ const AdminPage = () => {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"users" | "verification" | "transactions" | "ledger" | "seo" | "analytics" | "features">("users");
+  const [tab, setTab] = useState<"users" | "verification" | "coinbuys" | "transactions" | "ledger" | "seo" | "analytics" | "features">("users");
+  const [coinBuys, setCoinBuys] = useState<any[]>([]);
   const [featureFlags, setFeatureFlags] = useState<any[]>([]);
   const [appVersion, setAppVersion] = useState<string>("3.0");
   const [announcement, setAnnouncementInput] = useState<string>("");
@@ -202,18 +203,20 @@ const AdminPage = () => {
   };
 
   const loadData = async () => {
-    const [profilesRes, verificationsRes, transactionsRes, withdrawalsRes, ledgerRes] = await Promise.all([
+    const [profilesRes, verificationsRes, transactionsRes, withdrawalsRes, ledgerRes, coinBuysRes] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("verification_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("coin_transactions").select("*").eq("transaction_type", "withdrawal").order("created_at", { ascending: false }),
       supabase.from("withdrawal_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("gift_ledger" as any).select("*").order("created_at", { ascending: false }).limit(1000),
+      supabase.from("coin_transactions").select("*").eq("transaction_type", "purchase").order("created_at", { ascending: false }).limit(200),
     ]);
     if (profilesRes.data) setUsers(profilesRes.data);
     if (verificationsRes.data) setVerifications(verificationsRes.data);
     if (transactionsRes.data) setTransactions(transactionsRes.data);
     if (withdrawalsRes.data) setWithdrawals(withdrawalsRes.data);
     if (ledgerRes.data) setLedger(ledgerRes.data as any[]);
+    if (coinBuysRes.data) setCoinBuys(coinBuysRes.data);
   };
 
   const loadAnalytics = async () => {
@@ -420,6 +423,7 @@ const AdminPage = () => {
         {[
           { key: "users", icon: Users, label: "Users" },
           { key: "verification", icon: BadgeCheck, label: "Verify" },
+          { key: "coinbuys", icon: Coins, label: "Coin Buys" },
           { key: "transactions", icon: Coins, label: "Withdrawals" },
           { key: "ledger", icon: Receipt, label: "Ledger" },
           { key: "analytics", icon: BarChart3, label: "Analytics" },
