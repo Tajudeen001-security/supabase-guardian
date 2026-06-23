@@ -529,6 +529,64 @@ const AdminPage = () => {
           </div>
         )}
 
+        {tab === "coinbuys" && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">{coinBuys.filter(c => c.status === "pending").length} pending coin purchases</p>
+            {coinBuys.map((c) => {
+              const profile = users.find(u => u.user_id === c.user_id);
+              const decide = async (approve: boolean) => {
+                if (approve) {
+                  const current = profile?.jagx_coins || 0;
+                  const { error: balErr } = await supabase
+                    .from("profiles")
+                    .update({ jagx_coins: current + (c.amount || 0) })
+                    .eq("user_id", c.user_id);
+                  if (balErr) { toast.error(balErr.message); return; }
+                }
+                const { error } = await supabase
+                  .from("coin_transactions")
+                  .update({ status: approve ? "approved" : "rejected", reviewed_by: user!.id, reviewed_at: new Date().toISOString() } as any)
+                  .eq("id", c.id);
+                if (error) { toast.error(error.message); return; }
+                if (approve) {
+                  await supabase.from("notifications").insert({
+                    user_id: c.user_id,
+                    type: "coin_purchase_approved",
+                    content: `Your purchase of ${c.amount} JagX Coins was approved 🪙`,
+                  } as any);
+                }
+                toast.success(approve ? `Credited ${c.amount} coins to user` : "Rejected");
+                loadData();
+              };
+              return (
+                <div key={c.id} className="p-3 rounded-xl bg-surface border border-border/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-gold">🪙 {c.amount} coins</p>
+                      <p className="text-[10px] text-muted-foreground">@{profile?.username || c.user_id.slice(0,8)} • {new Date(c.created_at).toLocaleString()}</p>
+                      {c.opay_reference && <p className="text-[10px] text-muted-foreground">Opay: {c.opay_reference}</p>}
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${c.status === "approved" ? "bg-green-500/20 text-green-400" : c.status === "rejected" ? "bg-red-500/20 text-red-400" : "bg-gold/20 text-gold"}`}>
+                      {c.status}
+                    </span>
+                  </div>
+                  {c.receipt_url && (
+                    <ReceiptThumb path={c.receipt_url} />
+                  )}
+                  {c.status === "pending" && (
+                    <div className="flex gap-2">
+                      <button onClick={() => decide(true)} className="flex-1 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-[10px] font-bold uppercase">Approve & Credit</button>
+                      <button onClick={() => decide(false)} className="flex-1 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-[10px] font-bold uppercase">Reject</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {coinBuys.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">No coin purchase requests</p>}
+          </div>
+        )}
+
+
         {tab === "transactions" && (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">{withdrawals.length} withdrawal requests</p>
