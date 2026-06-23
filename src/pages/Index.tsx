@@ -67,14 +67,45 @@ const FeedPage = () => {
     setStoryGroups(groups);
   };
 
+  // Posts already shown this session — never show the same post twice.
+  const SEEN_KEY = "jagx_seen_posts_v1";
+  const getSeen = (): string[] => {
+    try { return JSON.parse(sessionStorage.getItem(SEEN_KEY) || "[]"); } catch { return []; }
+  };
+  const addSeen = (ids: string[]) => {
+    const merged = Array.from(new Set([...getSeen(), ...ids])).slice(-500);
+    try { sessionStorage.setItem(SEEN_KEY, JSON.stringify(merged)); } catch {}
+  };
+
   const loadPosts = async () => {
-    // Hide video posts from feed — videos appear only in Reels
-    const { data } = await supabase
+    // Hide video posts from feed — videos appear only in Reels.
+    // Fetch a wider pool, then dedupe + shuffle so refresh shows fresh order.
+    let seen = getSeen();
+    let q = supabase
       .from("posts")
       .select("*")
       .is("video_url", null)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(150);
+    if (seen.length > 0) q = q.not("id", "in", `(${seen.join(",")})`);
+    let { data } = await q;
+    // If we've exhausted everything new, reset and reload the latest 50.
+    if (!data || data.length === 0) {
+      sessionStorage.removeItem(SEEN_KEY);
+      seen = [];
+      const r = await supabase
+        .from("posts").select("*").is("video_url", null)
+        .order("created_at", { ascending: false }).limit(50);
+      data = r.data || [];
+    }
+    // Shuffle so feed feels fresh each refresh (Fisher–Yates).
+    const shuffled = [...data];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    data = shuffled.slice(0, 30);
+    addSeen(data.map((p: any) => p.id));
     if (!data || data.length === 0) { setPosts([]); return; }
     const userIds = [...new Set(data.map(p => p.user_id))];
     const postIds = data.map(p => p.id);

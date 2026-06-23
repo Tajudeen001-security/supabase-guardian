@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     updatePresence(true);
-    const interval = setInterval(() => updatePresence(true), 60000);
+    const interval = setInterval(() => updatePresence(true), 30000);
 
     // Silent IP-based location capture (no GPS prompt). Fire-and-forget.
     supabase.functions.invoke("track-presence").catch(() => {});
