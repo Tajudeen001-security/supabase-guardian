@@ -6,6 +6,17 @@ import { toast } from "sonner";
 import { Shield, Users, BadgeCheck, Coins, Trash2, CheckCircle, XCircle, ArrowLeft, Search, Download, Receipt, Globe, ExternalLink, RefreshCw, Cookie, Activity, FileSearch, BarChart3, ToggleLeft, Rocket } from "lucide-react";
 import { setConsent } from "@/components/CookieConsent";
 
+const ReceiptThumb = ({ path }: { path: string }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (path.startsWith("http")) { setUrl(path); return; }
+    supabase.storage.from("receipts").createSignedUrl(path, 3600).then(({ data }) => setUrl(data?.signedUrl || null));
+  }, [path]);
+  if (!url) return <p className="text-[10px] text-muted-foreground">Loading receipt…</p>;
+  return <a href={url} target="_blank" rel="noopener"><img src={url} alt="Receipt" className="w-full h-40 object-cover rounded-lg" /></a>;
+};
+
+
 const AdminPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
