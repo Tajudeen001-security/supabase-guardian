@@ -45,7 +45,13 @@ const FeedPage = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const refreshFeed = () => { setPendingCount(0); loadPosts(); loadStories(); };
+  const refreshFeed = () => {
+    setPendingCount(0);
+    // Wipe seen set so the refresh truly reshuffles and surfaces fresh content
+    try { sessionStorage.removeItem("jagx_seen_posts_v1"); } catch {}
+    loadPosts();
+    loadStories();
+  };
 
   const loadStories = async () => {
     const { data } = await supabase.from("stories").select("*").gte("expires_at", new Date().toISOString()).order("created_at", { ascending: false });

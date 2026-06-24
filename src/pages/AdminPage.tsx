@@ -196,6 +196,23 @@ const AdminPage = () => {
     checkAdmin();
   }, [user]);
 
+  // Realtime: new/changed coin purchase requests pop in for admins live
+  useEffect(() => {
+    if (!isAdmin) return;
+    const ch = supabase
+      .channel("admin-coin-buys")
+      .on("postgres_changes", { event: "*", schema: "public", table: "coin_transactions" }, (payload: any) => {
+        const row = payload.new || payload.old;
+        if (row?.transaction_type !== "purchase") return;
+        loadData();
+        if (payload.eventType === "INSERT") {
+          toast.info(`New coin purchase request: ${row.amount} JagX`);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [isAdmin]);
+
   const checkAdmin = async () => {
     // Check user_roles table
     const { data } = await supabase.from("user_roles").select("role").eq("user_id", user!.id);

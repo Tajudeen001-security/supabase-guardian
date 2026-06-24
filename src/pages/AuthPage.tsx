@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Mail, ArrowLeft, Eye, EyeOff, Timer, RotateCw } from "lucide-react";
+import { Mail, ArrowLeft, Eye, EyeOff, Timer, RotateCw, Gift } from "lucide-react";
 import { useOtpTimer, formatCountdown } from "@/hooks/useOtpTimer";
 import { routeAfterAuth } from "@/lib/postAuthRoute";
 
@@ -14,7 +14,9 @@ const COUNTRIES = ["Nigeria","United States","United Kingdom","Ghana","South Afr
 
 const AuthPage = () => {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState<AuthMode>(params.get("invite") ? "signup" : "login");
+  const [inviteCode, setInviteCode] = useState<string>(params.get("invite")?.toUpperCase() || "");
   const method: AuthMethod = "email";
   const signupOtp = useOtpTimer();
   const forgotOtp = useOtpTimer();
@@ -215,6 +217,12 @@ const AuthPage = () => {
           if (uErr) throw uErr;
           const { data: { user: u } } = await supabase.auth.getUser();
           if (u) await persistProfileFields(u.id);
+          // Redeem invite code if provided
+          if (inviteCode.trim()) {
+            const { data: r, error: rErr } = await supabase.rpc("redeem_invite_code" as any, { _code: inviteCode.trim() });
+            if (!rErr && (r as any)?.ok) toast.success("Invite code applied — your friend earns 50 JagX 🎁");
+            else if ((r as any)?.error) toast.message(`Invite code: ${(r as any).error}`);
+          }
           window.dispatchEvent(new CustomEvent("welcome-back", { detail: { name: username } }));
           toast.success("Account confirmed — welcome!");
           navigate(u ? await routeAfterAuth(u.id) : "/edit-profile");
@@ -326,6 +334,12 @@ const AuthPage = () => {
                   </div>
                   <input type="text" placeholder="Address (optional)" value={address} onChange={e => setAddress(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-surface border border-border text-foreground placeholder:text-muted-foreground outline-none focus:border-primary text-sm" />
+                  <div className="relative">
+                    <Gift className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
+                    <input type="text" placeholder="Invite code (optional) — earn your friend 50 JagX"
+                      value={inviteCode} onChange={e => setInviteCode(e.target.value.toUpperCase())}
+                      className="w-full pl-9 pr-4 py-3 rounded-xl bg-surface border border-gold/30 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary text-sm uppercase tracking-widest" />
+                  </div>
                 </>
               )}
             </>

@@ -71,9 +71,10 @@ const ProfilePage = () => {
             @{profile?.username || user?.user_metadata?.username || user?.email?.split("@")[0] || "user"}
           </h1>
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate("/earnings")} className="text-gold"><TrendingUp className="size-5" /></button>
-            <button onClick={() => navigate("/coins")} className="text-gold"><Coins className="size-5" /></button>
-            <button onClick={signOut} className="text-muted-foreground"><LogOut className="size-5" /></button>
+            <button onClick={() => navigate("/earnings")} className="text-gold" aria-label="Earnings"><TrendingUp className="size-5" /></button>
+            <button onClick={() => navigate("/coins")} className="text-gold" aria-label="Coins"><Coins className="size-5" /></button>
+            <button onClick={() => navigate("/settings")} className="text-foreground" aria-label="Settings"><Settings className="size-5" /></button>
+            <button onClick={signOut} className="text-muted-foreground" aria-label="Sign out"><LogOut className="size-5" /></button>
           </div>
         </div>
       </header>
