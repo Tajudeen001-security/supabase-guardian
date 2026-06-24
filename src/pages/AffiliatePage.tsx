@@ -17,8 +17,8 @@ const AffiliatePage = () => {
 
   const load = async () => {
     if (!user) return;
-    const { data: prof } = await supabase.from("profiles").select("invite_code").eq("user_id", user.id).maybeSingle();
-    if (prof?.invite_code) setCode(prof.invite_code);
+    const { data: prof } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
+    if ((prof as any)?.invite_code) setCode((prof as any).invite_code);
 
     const { data: refs } = await supabase
       .from("referrals" as any)
