@@ -217,6 +217,12 @@ const AuthPage = () => {
           if (uErr) throw uErr;
           const { data: { user: u } } = await supabase.auth.getUser();
           if (u) await persistProfileFields(u.id);
+          // Redeem invite code if provided
+          if (inviteCode.trim()) {
+            const { data: r, error: rErr } = await supabase.rpc("redeem_invite_code" as any, { _code: inviteCode.trim() });
+            if (!rErr && (r as any)?.ok) toast.success("Invite code applied — your friend earns 50 JagX 🎁");
+            else if ((r as any)?.error) toast.message(`Invite code: ${(r as any).error}`);
+          }
           window.dispatchEvent(new CustomEvent("welcome-back", { detail: { name: username } }));
           toast.success("Account confirmed — welcome!");
           navigate(u ? await routeAfterAuth(u.id) : "/edit-profile");
