@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Mail, ArrowLeft, Eye, EyeOff, Timer, RotateCw } from "lucide-react";
+import { Mail, ArrowLeft, Eye, EyeOff, Timer, RotateCw, Gift } from "lucide-react";
 import { useOtpTimer, formatCountdown } from "@/hooks/useOtpTimer";
 import { routeAfterAuth } from "@/lib/postAuthRoute";
 
@@ -14,7 +14,9 @@ const COUNTRIES = ["Nigeria","United States","United Kingdom","Ghana","South Afr
 
 const AuthPage = () => {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState<AuthMode>(params.get("invite") ? "signup" : "login");
+  const [inviteCode, setInviteCode] = useState<string>(params.get("invite")?.toUpperCase() || "");
   const method: AuthMethod = "email";
   const signupOtp = useOtpTimer();
   const forgotOtp = useOtpTimer();
