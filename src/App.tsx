@@ -43,6 +43,8 @@ import JoinGroupPage from "./pages/JoinGroupPage";
 import DeveloperPage from "./pages/DeveloperPage";
 import DeveloperDocsPage from "./pages/DeveloperDocsPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import SettingsPage from "./pages/SettingsPage";
+import AffiliatePage from "./pages/AffiliatePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -117,6 +119,8 @@ const AppContent = () => {
         <Route path="/developer/docs" element={<DeveloperDocsPage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/terms" element={<PrivacyPolicyPage />} />
+        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/affiliate" element={<ProtectedRoute><AffiliatePage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
