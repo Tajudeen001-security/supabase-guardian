@@ -334,6 +334,12 @@ const AuthPage = () => {
                   </div>
                   <input type="text" placeholder="Address (optional)" value={address} onChange={e => setAddress(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-surface border border-border text-foreground placeholder:text-muted-foreground outline-none focus:border-primary text-sm" />
+                  <div className="relative">
+                    <Gift className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
+                    <input type="text" placeholder="Invite code (optional) — earn your friend 50 JagX"
+                      value={inviteCode} onChange={e => setInviteCode(e.target.value.toUpperCase())}
+                      className="w-full pl-9 pr-4 py-3 rounded-xl bg-surface border border-gold/30 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary text-sm uppercase tracking-widest" />
+                  </div>
                 </>
               )}
             </>
