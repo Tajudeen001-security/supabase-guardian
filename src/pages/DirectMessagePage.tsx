@@ -330,16 +330,15 @@ const DirectMessagePage = () => {
     return "Offline";
   };
 
-  const renderMessage = (msg: Message) => {
+  const renderMessage = (msg: Message, opts: { showAvatar: boolean; isGroupTail: boolean; isGroupHead: boolean }) => {
+    const { showAvatar, isGroupTail, isGroupHead } = opts;
     const isMine = msg.sender_id === user?.id;
     const isEditing = editingId === msg.id;
     const isImage = msg.message_type === "image";
     const isVideo = msg.message_type === "video";
     const isAudio = msg.message_type === "audio";
     const isSticker = msg.message_type === "sticker";
-    const isForwardedPost = msg.content.startsWith("https://") && msg.content.includes("/posts/");
 
-    // Parse reply
     const hasReply = msg.content.startsWith("┃ ");
     let replyText = "";
     let actualContent = msg.content;
@@ -360,73 +359,103 @@ const DirectMessagePage = () => {
       );
     }
 
-    return (
+    const cornerClass = isSticker
+      ? ""
+      : isMine
+        ? `rounded-2xl ${isGroupTail ? "rounded-br-md" : "rounded-br-2xl"} ${!isGroupHead ? "rounded-tr-md" : ""}`
+        : `rounded-2xl ${isGroupTail ? "rounded-bl-md" : "rounded-bl-2xl"} ${!isGroupHead ? "rounded-tl-md" : ""}`;
+
+    const bubble = (
       <div
         className="relative group"
         onTouchStart={(e) => handleTouchStart(e, msg)}
         onTouchEnd={(e) => handleTouchEnd(e, msg)}
-        onClick={() => isMine && setSelectedMsg(selectedMsg === msg.id ? null : msg.id)}
+        onClick={(e) => { e.stopPropagation(); setSelectedMsg(selectedMsg === msg.id ? null : msg.id); }}
       >
         <div
-          className={`relative max-w-[78%] text-sm shadow-sm ${
-            isSticker ? "bg-transparent text-4xl p-2" :
+          className={`relative max-w-[78vw] sm:max-w-[420px] text-[15px] leading-snug shadow-sm ${cornerClass} ${
+            isSticker ? "bg-transparent text-5xl p-1" :
             isMine
-              ? `text-primary-foreground rounded-2xl rounded-br-sm ${theme?.theme_color ? "" : "gold-gradient"}`
-              : "bg-surface border border-border/30 text-foreground rounded-2xl rounded-bl-sm"
+              ? `text-primary-foreground ${theme?.theme_color ? "" : "gold-gradient"}`
+              : "bg-surface border border-border/40 text-foreground"
           } ${(isImage || isVideo) ? "p-1" : isSticker ? "" : "px-3.5 py-2"}`}
-          style={
-            isMine && !isSticker && theme?.theme_color
-              ? { background: theme.theme_color }
-              : undefined
-          }
+          style={isMine && !isSticker && theme?.theme_color ? { background: theme.theme_color } : undefined}
         >
-          {/* Reply preview */}
           {hasReply && !isSticker && (
-            <div className={`text-[10px] mb-1.5 pl-2 border-l-2 ${isMine ? "border-primary-foreground/40 text-primary-foreground/70" : "border-gold/40 text-gold/70"}`}>
+            <div className={`text-[11px] mb-1.5 pl-2 border-l-2 line-clamp-2 ${isMine ? "border-primary-foreground/40 text-primary-foreground/80" : "border-gold/50 text-muted-foreground"}`}>
               {replyText.replace("┃ ", "")}
             </div>
           )}
 
           {isSticker ? (
-            <span className="text-4xl">{msg.content}</span>
+            <span className="text-5xl">{msg.content}</span>
           ) : isImage ? (
             <button onClick={(e) => { e.stopPropagation(); setFullImage(msg.content); }}>
-              <img src={msg.content} className="max-w-[250px] rounded-xl" loading="lazy" />
+              <img src={msg.content} className="max-w-[260px] rounded-xl" loading="lazy" />
             </button>
           ) : isVideo ? (
-            <video src={msg.content} className="max-w-[250px] rounded-xl" controls playsInline preload="metadata" />
+            <video src={msg.content} className="max-w-[260px] rounded-xl" controls playsInline preload="metadata" />
           ) : isAudio ? (
-            <audio src={msg.content} controls className="max-w-[220px]" />
+            <audio src={msg.content} controls className="max-w-[230px]" />
           ) : (
-            <span>{hasReply ? actualContent : msg.content}</span>
+            <span className="whitespace-pre-wrap break-words">{hasReply ? actualContent : msg.content}</span>
           )}
 
-          {!isSticker && (
-            <div className={`text-[9px] mt-1 ${(isImage || isVideo) ? "px-2 pb-1" : ""} ${isMine ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-              {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              {isMine && <span className="ml-1">{msg.is_read ? "✓✓" : "✓"}</span>}
+          {!isSticker && isGroupTail && (
+            <div className={`text-[10px] mt-1 flex items-center gap-1 ${(isImage || isVideo) ? "px-2 pb-1" : ""} ${isMine ? "text-primary-foreground/70 justify-end" : "text-muted-foreground"}`}>
+              <span>{new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+              {isMine && <span className={msg.is_read ? "text-sky-300" : ""}>{msg.is_read ? "✓✓" : "✓"}</span>}
             </div>
           )}
         </div>
 
         {selectedMsg === msg.id && isMine && (
           <div className="absolute bottom-full mb-1 right-0 flex gap-1 bg-surface border border-border/30 rounded-lg p-1 shadow-xl z-10">
-            <button onClick={() => setReplyTo(msg)} className="p-1.5 rounded hover:bg-surface-elevated"><Reply className="size-3 text-foreground" /></button>
+            <button onClick={(e) => { e.stopPropagation(); setReplyTo(msg); setSelectedMsg(null); }} className="p-1.5 rounded hover:bg-surface-elevated"><Reply className="size-3 text-foreground" /></button>
             {msg.message_type === "text" && (
-              <button onClick={() => startEdit(msg)} className="p-1.5 rounded hover:bg-surface-elevated"><Edit3 className="size-3 text-foreground" /></button>
+              <button onClick={(e) => { e.stopPropagation(); startEdit(msg); }} className="p-1.5 rounded hover:bg-surface-elevated"><Edit3 className="size-3 text-foreground" /></button>
             )}
-            <button onClick={() => deleteMessage(msg.id)} className="p-1.5 rounded hover:bg-surface-elevated"><Trash2 className="size-3 text-red-400" /></button>
+            <button onClick={(e) => { e.stopPropagation(); deleteMessage(msg.id); }} className="p-1.5 rounded hover:bg-surface-elevated"><Trash2 className="size-3 text-red-400" /></button>
           </div>
         )}
 
-        {/* Reply action for other user's messages */}
         {!isMine && selectedMsg === msg.id && (
           <div className="absolute bottom-full mb-1 left-0 flex gap-1 bg-surface border border-border/30 rounded-lg p-1 shadow-xl z-10">
-            <button onClick={() => { setReplyTo(msg); setSelectedMsg(null); }} className="p-1.5 rounded hover:bg-surface-elevated"><Reply className="size-3 text-foreground" /></button>
+            <button onClick={(e) => { e.stopPropagation(); setReplyTo(msg); setSelectedMsg(null); }} className="p-1.5 rounded hover:bg-surface-elevated"><Reply className="size-3 text-foreground" /></button>
           </div>
         )}
       </div>
     );
+
+    return (
+      <div className={`flex items-end gap-2 ${isMine ? "justify-end" : "justify-start"}`}>
+        {!isMine && (
+          <div className="w-7 shrink-0">
+            {showAvatar && (
+              <div className="size-7 rounded-full bg-surface border border-border/40 overflow-hidden">
+                {otherUser?.avatar_url ? (
+                  <img src={otherUser.avatar_url} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gold text-[11px] font-display italic">
+                    {(otherUser?.username || "U")[0].toUpperCase()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {bubble}
+      </div>
+    );
+  };
+
+  const formatDayLabel = (d: Date) => {
+    const today = new Date();
+    const yest = new Date(); yest.setDate(today.getDate() - 1);
+    const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+    if (sameDay(d, today)) return "Today";
+    if (sameDay(d, yest)) return "Yesterday";
+    return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
   };
 
   return (
@@ -482,30 +511,48 @@ const DirectMessagePage = () => {
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-1.5 pb-28"
+        className="flex-1 overflow-y-auto no-scrollbar px-3 pt-4 pb-28 space-y-0.5"
         style={
           theme?.background_url
             ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url(${theme.background_url})`, backgroundSize: "cover", backgroundPosition: "center" }
             : undefined
         }
+        onClick={() => setSelectedMsg(null)}
       >
-        {messages.map((msg) => (
-          <div key={msg.id}>
-            {firstUnreadId === msg.id && (
-              <div data-unread-anchor="true" className="flex items-center gap-3 my-3 px-2">
-                <div className="flex-1 h-[1px] bg-gold/30" />
-                <span className="text-[10px] uppercase tracking-[0.3em] text-gold/80 font-bold">Unread messages</span>
-                <div className="flex-1 h-[1px] bg-gold/30" />
+        {messages.map((msg, i) => {
+          const prev = messages[i - 1];
+          const next = messages[i + 1];
+          const curDate = new Date(msg.created_at);
+          const prevDate = prev ? new Date(prev.created_at) : null;
+          const showDay = !prevDate || prevDate.toDateString() !== curDate.toDateString();
+          const sameSenderAsPrev = prev && prev.sender_id === msg.sender_id && !showDay && (curDate.getTime() - new Date(prev.created_at).getTime() < 5 * 60 * 1000);
+          const sameSenderAsNext = next && next.sender_id === msg.sender_id && new Date(next.created_at).toDateString() === curDate.toDateString() && (new Date(next.created_at).getTime() - curDate.getTime() < 5 * 60 * 1000);
+          const isGroupHead = !sameSenderAsPrev;
+          const isGroupTail = !sameSenderAsNext;
+          const showAvatar = isGroupTail; // avatar shown on last bubble of group
+          const wrapMargin = isGroupHead ? "mt-3" : "mt-0.5";
+          return (
+            <div key={msg.id}>
+              {showDay && (
+                <div className="flex items-center justify-center my-4">
+                  <span className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground bg-surface/60 backdrop-blur px-3 py-1 rounded-full border border-border/30">
+                    {formatDayLabel(curDate)}
+                  </span>
+                </div>
+              )}
+              {firstUnreadId === msg.id && (
+                <div data-unread-anchor="true" className="flex items-center gap-3 my-3 px-2">
+                  <div className="flex-1 h-[1px] bg-gold/30" />
+                  <span className="text-[10px] uppercase tracking-[0.3em] text-gold/80 font-bold">Unread messages</span>
+                  <div className="flex-1 h-[1px] bg-gold/30" />
+                </div>
+              )}
+              <div className={wrapMargin}>
+                {renderMessage(msg, { showAvatar, isGroupHead, isGroupTail })}
               </div>
-            )}
-            <div
-              className={`flex ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}
-              onClick={() => msg.sender_id !== user?.id && setSelectedMsg(selectedMsg === msg.id ? null : msg.id)}
-            >
-              {renderMessage(msg)}
             </div>
-          </div>
-        ))}
+          );
+        })}
         {(presence?.is_typing || aiBusy) && (
           <div className="flex justify-start">
             <div className="px-4 py-3 rounded-2xl bg-surface border border-border/30 rounded-bl-md">
