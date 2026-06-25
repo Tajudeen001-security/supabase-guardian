@@ -511,30 +511,48 @@ const DirectMessagePage = () => {
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-1.5 pb-28"
+        className="flex-1 overflow-y-auto no-scrollbar px-3 pt-4 pb-28 space-y-0.5"
         style={
           theme?.background_url
             ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url(${theme.background_url})`, backgroundSize: "cover", backgroundPosition: "center" }
             : undefined
         }
+        onClick={() => setSelectedMsg(null)}
       >
-        {messages.map((msg) => (
-          <div key={msg.id}>
-            {firstUnreadId === msg.id && (
-              <div data-unread-anchor="true" className="flex items-center gap-3 my-3 px-2">
-                <div className="flex-1 h-[1px] bg-gold/30" />
-                <span className="text-[10px] uppercase tracking-[0.3em] text-gold/80 font-bold">Unread messages</span>
-                <div className="flex-1 h-[1px] bg-gold/30" />
+        {messages.map((msg, i) => {
+          const prev = messages[i - 1];
+          const next = messages[i + 1];
+          const curDate = new Date(msg.created_at);
+          const prevDate = prev ? new Date(prev.created_at) : null;
+          const showDay = !prevDate || prevDate.toDateString() !== curDate.toDateString();
+          const sameSenderAsPrev = prev && prev.sender_id === msg.sender_id && !showDay && (curDate.getTime() - new Date(prev.created_at).getTime() < 5 * 60 * 1000);
+          const sameSenderAsNext = next && next.sender_id === msg.sender_id && new Date(next.created_at).toDateString() === curDate.toDateString() && (new Date(next.created_at).getTime() - curDate.getTime() < 5 * 60 * 1000);
+          const isGroupHead = !sameSenderAsPrev;
+          const isGroupTail = !sameSenderAsNext;
+          const showAvatar = isGroupTail; // avatar shown on last bubble of group
+          const wrapMargin = isGroupHead ? "mt-3" : "mt-0.5";
+          return (
+            <div key={msg.id}>
+              {showDay && (
+                <div className="flex items-center justify-center my-4">
+                  <span className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground bg-surface/60 backdrop-blur px-3 py-1 rounded-full border border-border/30">
+                    {formatDayLabel(curDate)}
+                  </span>
+                </div>
+              )}
+              {firstUnreadId === msg.id && (
+                <div data-unread-anchor="true" className="flex items-center gap-3 my-3 px-2">
+                  <div className="flex-1 h-[1px] bg-gold/30" />
+                  <span className="text-[10px] uppercase tracking-[0.3em] text-gold/80 font-bold">Unread messages</span>
+                  <div className="flex-1 h-[1px] bg-gold/30" />
+                </div>
+              )}
+              <div className={wrapMargin}>
+                {renderMessage(msg, { showAvatar, isGroupHead, isGroupTail })}
               </div>
-            )}
-            <div
-              className={`flex ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}
-              onClick={() => msg.sender_id !== user?.id && setSelectedMsg(selectedMsg === msg.id ? null : msg.id)}
-            >
-              {renderMessage(msg)}
             </div>
-          </div>
-        ))}
+          );
+        })}
         {(presence?.is_typing || aiBusy) && (
           <div className="flex justify-start">
             <div className="px-4 py-3 rounded-2xl bg-surface border border-border/30 rounded-bl-md">
